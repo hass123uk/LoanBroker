@@ -13,31 +13,32 @@ namespace LoanBroker
     {
         private static ConcurrentDictionary<long, LoanQuoteRequest> _loanQuoteRequests;
         private static ConcurrentDictionary<long, List<BankQuoteReply>> _bankQuoteReplies;
-        private static MessageGateway _messageGateway;
         private static MessageTransformer _messageTransformer;
 
         private static void Main(string[] args)
         {
-            _messageGateway = new MessageGateway("host=localhost;timeout=60");
             _messageTransformer = new MessageTransformer();
             _loanQuoteRequests = new ConcurrentDictionary<long, LoanQuoteRequest>();
             _bankQuoteReplies = new ConcurrentDictionary<long, List<BankQuoteReply>>();
             Console.WriteLine("Loan Broker application started.");
 
-            _messageGateway.Receive<LoanQuoteRequest>("loan.broker.customer.request", HandleLoanQuoteRequest);
-            _messageGateway.Receive<BankQuoteReply>("loan.broker.bank.reply", HandleBankQuoteReply);
-
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Listening on customer request queue.");
-            Console.WriteLine("Listening on bank reply queue.");
-            Console.ResetColor();
-            ConsoleKeyInfo key;
-            do
+            using (var messageGateway = new MessageGateway("host=localhost;timeout=60"))
             {
-                Console.WriteLine("Press ESC to exit application.");
-                key = Console.ReadKey(true);
-            } while (key.Key != ConsoleKey.Escape);
-            _messageGateway.Dispose();
+                messageGateway.Receive<LoanQuoteRequest>("loan.broker.customer.request", HandleLoanQuoteRequest);
+                messageGateway.Receive<BankQuoteReply>("loan.broker.bank.reply", HandleBankQuoteReply);
+
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Listening on customer request queue.");
+                Console.WriteLine("Listening on bank reply queue.");
+                Console.ResetColor();
+                ConsoleKeyInfo key;
+                do
+                {
+                    Console.WriteLine("Press ESC to exit application.");
+                    key = Console.ReadKey(true);
+                } while (key.Key != ConsoleKey.Escape);
+            }
         }
 
         private static void HandleLoanQuoteRequest(LoanQuoteRequest loanQuoteRequest)
@@ -48,8 +49,12 @@ namespace LoanBroker
             var creditBureauRequest = _messageTransformer.FilterMessage(loanQuoteRequest);
 
             Console.WriteLine($"Sent credit bureau request regarding Cpr.Nr {loanQuoteRequest.CprNr}");
-            var reply = _messageGateway.Request<CreditBureauRequest, CreditBureauReply>(creditBureauRequest);
-            HandleCreditBureauReply(reply);
+
+            using (var messageGateway = new MessageGateway("host=localhost;timeout=60"))
+            {
+                var reply = messageGateway.Request<CreditBureauRequest, CreditBureauReply>(creditBureauRequest);
+                HandleCreditBureauReply(reply);
+            }
         }
 
         private static void HandleCreditBureauReply(CreditBureauReply creditBureauReply)
@@ -60,8 +65,10 @@ namespace LoanBroker
             {
                 //Content Enriching
                 var bankQuoteRequest = _messageTransformer.EnrichMessage(creditBureauReply, loanRequest);
-
-                _messageGateway.Publish(bankQuoteRequest);
+                using (var messageGateway = new MessageGateway("host=localhost;timeout=60"))
+                {
+                    messageGateway.Publish(bankQuoteRequest);
+                }
                 Console.WriteLine($"Sent request to all banks regarding Cpr.Nr {bankQuoteRequest.CprNr}");
 
 
@@ -93,7 +100,7 @@ namespace LoanBroker
                     && _loanQuoteRequests.TryGetValue(bankQuoteRequest.CprNr, out loanRequest))
                 {
 
-                    if (bankQuoteReplies.Count > 1)
+                    if (bankQuoteReplies.Count > 0)
                     {
                         var bestBankQuoteReply = bankQuoteReplies[0];
 
@@ -133,8 +140,10 @@ namespace LoanBroker
 
         private static void ReplyToLoanRequest(LoanQuoteRequest loanRequest, LoanQuoteReply ĺoanQuoteReply)
         {
-            _messageGateway.Send(ĺoanQuoteReply, loanRequest.ReplyQueueId);
-
+            using (var messageGateway = new MessageGateway("host=localhost;timeout=60"))
+            {
+                messageGateway.Send(ĺoanQuoteReply, loanRequest.ReplyQueueId);
+            }
             LoanQuoteRequest removedCustomer;
             List<BankQuoteReply> removedBankQuoteReplies;
             _loanQuoteRequests.TryRemove(loanRequest.CprNr, out removedCustomer);
