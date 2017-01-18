@@ -43,16 +43,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="BankProgram.cs" />
+    <Compile Include="Bank.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MessageGateway\MessageGateway.csproj">
-      <Project>{8af22d78-1b87-45c1-b600-6b1dd03410b9}</Project>
-      <Name>MessageGateway</Name>
+    <ProjectReference Include="..\EasyNetQ_Messaging\EasyNetQ_Messaging.csproj">
+      <Project>{D099BD91-4896-432E-8B79-C0A942D23231}</Project>
+      <Name>EasyNetQ_Messaging</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Messages\Messages.csproj">
+      <Project>{7F3693A6-D5FB-43C7-A6F8-60C3D94BDB7A}</Project>
+      <Name>Messages</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
